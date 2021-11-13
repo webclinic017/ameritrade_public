@@ -1,0 +1,1 @@
+select * from register_of_call_and_put_actions;
