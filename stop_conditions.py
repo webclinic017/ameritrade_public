@@ -1,4 +1,5 @@
-from database import ask_purchases, update_status_of_actions
+#from database import ask_purchases, update_status_of_actions
+from db import ask_purchases, update_status_of_actions
 from send_email import send_email_multiple_contracts
 from datetime import datetime, timedelta
 from find_next_friday import find_next_friday

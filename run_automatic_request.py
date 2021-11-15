@@ -1,7 +1,8 @@
 import requests
 import time 
 from datetime import datetime
-from database import ask_purchases, update_status_of_actions
+#from database import ask_purchases, update_status_of_actions
+from db import ask_purchases, update_status_of_actions
 from dotenv import load_dotenv
 import os
 load_dotenv(".env")

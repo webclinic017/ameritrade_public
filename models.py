@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field
+from datetime import datetime
 
 
 class UserList(BaseModel):
@@ -32,3 +33,15 @@ class UserDelete(BaseModel):
     id: str = Field(..., example="Enter your id")
 
 
+class InsertDataIntoRegisterOfActions(BaseModel):
+    symbol: str = Field(..., example="AAPL")
+    candle_date: datetime = Field(..., example="2021-04-23 10:20")
+    open_value: float = Field(..., example="30.1")
+    close_value: float = Field(..., example="20.9")
+    action_type: str = Field(..., example="call condition 5")
+    call_or_put: str = Field(..., example="call")
+    strike: float = Field(..., example="Strike value")
+    ask_price: float = Field(..., example="90.3")
+    bid_price: float = Field(..., example="91.2")
+    status_of_action: str = Field(..., example="on posession")
+    order_date: datetime = Field(..., example="2021-04-23 10:21")
