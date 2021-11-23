@@ -1,3 +1,5 @@
+import time
+
 import uvicorn
 from dotenv import load_dotenv
 from fastapi_sqlalchemy import DBSessionMiddleware
@@ -36,6 +38,8 @@ from get_real_time_data import get_real_time_data
 from send_report import send_report
 from stop_conditions import stop_conditions
 from get_price_history_poligon import get_price_history_poligon
+from run_automatic_request import automatic_request
+from db import insert_data, ask_purchases
 
 
 load_dotenv(".env")
@@ -149,9 +153,25 @@ async def moderna(request: Request):
 
 @app.on_event("startup")
 async def startup():
+    thread_automatic_request = Thread(target=automatic_request)
+    thread_automatic_request.start()
     await database.connect()
-
-
+    time.sleep(5)
+    print("inserting data")
+    insert_data(symbol="AAPL",
+                candle_date="2021-10-04 09:30:00",
+                open_value=1.1,
+                close_value=2.2,
+                action_type="put condition 1",
+                call_or_put="put",
+                strike=3.3,
+                ask_price=4.4,
+                bid_price=5.5,
+                status_of_action="on posession",
+                order_date=datetime.now())
+    print("finishing insert data and asking for purchases")
+    print(await ask_purchases(status="on posession", symbol="AAPL", call_or_put="put"))
+    print("finishing asking purchases")
 @app.on_event("shutdown")
 async def shutdown():
     await database.disconnect()

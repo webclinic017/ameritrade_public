@@ -108,4 +108,4 @@ if __name__ == '__main__':
 	status_of_action="on posession",
 	order_date=datetime.now())
 	
-	ask_purchases(status= "on posession", symbol="AAPL", call_or_put="call")
+	ask_purchases(status= "on posession", symbol="AAPL", call_or_put="put")
