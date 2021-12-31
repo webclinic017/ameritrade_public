@@ -2,25 +2,17 @@ import time
 
 import uvicorn
 from dotenv import load_dotenv
-from fastapi_sqlalchemy import DBSessionMiddleware
-import models as mdUser
-from db import database, register_of_calls_and_puts_actions
+from db import database
 import datetime
-import uuid
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import pandas as pd
 from datetime import datetime, timedelta
-# import to avoid errors of threads
-import matplotlib.pyplot as mpl
-mpl.switch_backend('agg')
-
 import mplfinance as mpf
 from threading import Thread
 import queue
-
 from get_price_history import get_price_history
 from classify_candles import classify_candles
 from get_hammers import get_hammers
@@ -40,11 +32,14 @@ from stop_conditions import stop_conditions
 from get_price_history_poligon import get_price_history_poligon
 from run_automatic_request import automatic_request
 from db import insert_data, ask_purchases
+# import to avoid errors of threads
+import matplotlib.pyplot as mpl
+mpl.switch_backend('agg')
 
 
 load_dotenv(".env")
 app = FastAPI()
-#app.add_middleware(DBSessionMiddleware, db_url=os.environ["DATABASE_URL"])
+# app.add_middleware(DBSessionMiddleware, db_url=os.environ["DATABASE_URL"])
 app.mount("/static", StaticFiles(directory="static"), name="/static")
 templates = Jinja2Templates(directory="templates")
 
@@ -53,6 +48,7 @@ def create_graph(symbol, period, periodType, frecuencyType, frecuency, cola, low
     img = "static/assets/img/{}.png".format(symbol)
     title = "{} prices (Last {} days)".format(symbol, period)
 
+    # for use of ameritrade api
     # candles = get_price_history(symbol=symbol, period=period, periodType=periodType, frecuencyType=frecuencyType, frecuency=frecuency)
     today = datetime.today()
     ten_days_ago = today - timedelta(days=15)
@@ -77,7 +73,7 @@ def create_graph(symbol, period, periodType, frecuencyType, frecuency, cola, low
     candles = get_hammers(candles)
     candles = get_gap(candles)
     candles = get_max_and_min(candles)
-    max,min = graph_max_and_min(candles)
+    max, min = graph_max_and_min(candles)
     candles = max_and_min_comparasion(candles)
     candles = check_trend(candles)
     candles = check_lateral_trend(candles)
@@ -109,7 +105,7 @@ async def apple(request: Request):
     create_graph_thread = Thread(target=create_graph, args=("AAPL", 10, 'day', 'minute', '30', cola, 0, .80))
     create_graph_thread.start()
     data = cola.get()
-    return templates.TemplateResponse("apple.html", {"request": request, "img":img,"data":data})
+    return templates.TemplateResponse("apple.html", {"request": request, "img": img, "data": data})
 
 @app.get("/amazon", response_class=HTMLResponse)
 async def amazon(request: Request):
@@ -118,7 +114,7 @@ async def amazon(request: Request):
     create_graph_thread = Thread(target=create_graph, args=("AMZN", 10, 'day', 'minute', '30', cola, 0, .80))
     create_graph_thread.start()
     data = cola.get()
-    return templates.TemplateResponse("amazon.html", {"request": request, "img":img,"data":data})
+    return templates.TemplateResponse("amazon.html", {"request": request, "img": img, "data": data})
 
 
 
@@ -129,7 +125,7 @@ async def bank_of_america(request: Request):
     create_graph_thread = Thread(target=create_graph, args=("BAC", 10, 'day', 'minute', '30', cola, 0, .80))
     create_graph_thread.start()
     data = cola.get()
-    return templates.TemplateResponse("bank_of_america.html", {"request": request, "img":img,"data":data})
+    return templates.TemplateResponse("bank_of_america.html", {"request": request, "img": img, "data": data})
 
 @app.get("/facebook", response_class=HTMLResponse)
 async def facebook(request: Request):
@@ -138,7 +134,7 @@ async def facebook(request: Request):
     create_graph_thread = Thread(target=create_graph, args=("FB", 10, 'day', 'minute', '30', cola, 0, .80))
     create_graph_thread.start()
     data = cola.get()
-    return templates.TemplateResponse("facebook.html", {"request": request, "img":img,"data":data})
+    return templates.TemplateResponse("facebook.html", {"request": request, "img": img, "data": data})
 
 @app.get("/moderna", response_class=HTMLResponse)
 async def moderna(request: Request):
@@ -147,7 +143,7 @@ async def moderna(request: Request):
     create_graph_thread = Thread(target=create_graph, args=("MRNA", 10, 'day', 'minute', '30', cola, 0, .80))
     create_graph_thread.start()
     data = cola.get()
-    return templates.TemplateResponse("moderna.html", {"request": request, "img":img,"data":data})
+    return templates.TemplateResponse("moderna.html", {"request": request, "img": img, "data": data})
 
 
 
@@ -155,7 +151,11 @@ async def moderna(request: Request):
 async def startup():
     thread_automatic_request = Thread(target=automatic_request)
     thread_automatic_request.start()
-    await database.connect()
+    # use when we are using
+    # database = databases.Database(DATABASE_URL)
+    # await database.connect()
+
+    database.connect()
     time.sleep(5)
     print("inserting data")
     insert_data(symbol="AAPL",
@@ -170,74 +170,17 @@ async def startup():
                 status_of_action="on posession",
                 order_date=datetime.now())
     print("finishing insert data and asking for purchases")
-    print(await ask_purchases(status="on posession", symbol="AAPL", call_or_put="put"))
+    print(ask_purchases(status="on posession", symbol="AAPL", call_or_put="put"))
     print("finishing asking purchases")
+
+
 @app.on_event("shutdown")
 async def shutdown():
-    await database.disconnect()
+    # use when we are using
+    # database = databases.Database(DATABASE_URL)
+    # await database.disconnect()
+    database.close()
 
-"""
-@app.get("/users", response_model=List[mdUser.UserList], tags=["Users"])
-async def find_all_users():
-    query = users.select()
-    return await database.fetch_all(query)
-
-
-@app.post("/users", response_model=mdUser.UserList, tags=["Users"])
-async def register_user(user: mdUser.UserEntry):
-    gID = str(uuid.uuid1())
-    gDate = str(datetime.datetime.now())
-    query = users.insert().values(
-        id=gID,
-        username=user.username,
-        password=user.password,
-        first_name=user.first_name,
-        last_name=user.last_name,
-        gender=user.gender,
-        create_at=gDate,
-        status="1"
-    )
-
-    await database.execute(query)
-    return {
-        "id": gID,
-        **user.dict(),
-        "create_at": gDate,
-        "status": "1"
-    }
-
-
-@app.get("/users/{userId}", response_model=mdUser.UserList, tags=["Users"])
-async def find_user_by_id(userId: str):
-    query = users.select().where(users.c.id == userId)
-    return await database.fetch_one(query)
-
-
-@app.put("/users", response_model=mdUser.UserList, tags=["Users"])
-async def update_user(user: mdUser.UserUpdate):
-    gDate = str(datetime.datetime.now())
-    query = users.update().\
-        where(users.c.id == user.id).\
-        values(
-            first_name=user.first_name,
-            last_name=user.last_name,
-            gender=user.gender,
-            status=user.status,
-            create_at=gDate,
-        )
-    await database.execute(query)
-    return await find_user_by_id(user.id)
-
-
-@app.delete("/users/{userId}", tags=["Users"])
-async def delete_user(user: mdUser.UserDelete):
-    query = users.delete().where(users.c.id == user.id)
-    await database.execute(query)
-    return {
-        "status": True,
-        "message": "This user has been deleted successfully."
-    }
-"""
 
 
 if __name__ == "__main__":

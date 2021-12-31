@@ -1,6 +1,6 @@
 import databases
 import sqlalchemy
-from sqlalchemy import and_
+from sqlalchemy.sql import text
 import os
 from dotenv import load_dotenv
 load_dotenv(".env")
@@ -28,21 +28,15 @@ DATABASE_URL = "{}{}:{}@{}:{}/{}".format(
     DB_NAME)
 print(DATABASE_URL)
 
-database = databases.Database(DATABASE_URL)
-metadata = sqlalchemy.MetaData()
+#database = databases.Database(DATABASE_URL)
 
-users = sqlalchemy.Table(
-    "py_users",
-    metadata,
-    sqlalchemy.Column("id", sqlalchemy.String, primary_key=True),
-    sqlalchemy.Column("username", sqlalchemy.String),
-    sqlalchemy.Column("password", sqlalchemy.String),
-    sqlalchemy.Column("first_name", sqlalchemy.String),
-    sqlalchemy.Column("last_name", sqlalchemy.String),
-    sqlalchemy.Column("gender", sqlalchemy.CHAR),
-    sqlalchemy.Column("create_at", sqlalchemy.String),
-    sqlalchemy.Column("status", sqlalchemy.CHAR),
-)
+
+metadata = sqlalchemy.MetaData()
+engine = sqlalchemy.create_engine(DATABASE_URL)
+database = engine.connect()
+
+
+
 
 register_of_calls_and_puts_actions = sqlalchemy.Table(
     "register_of_calls_and_puts_actions",
@@ -61,6 +55,7 @@ register_of_calls_and_puts_actions = sqlalchemy.Table(
     sqlalchemy.Column("order_date", sqlalchemy.DateTime),
 )
 
+metadata.create_all(engine)
 
 def insert_data(symbol,
                 candle_date,
@@ -88,18 +83,21 @@ def insert_data(symbol,
     database.execute(query)
 
 
-async def ask_purchases(status, symbol, call_or_put):
+def ask_purchases(status, symbol, call_or_put):
     list_of_purchases = []
-    query = register_of_calls_and_puts_actions.select(
-        register_of_calls_and_puts_actions.c.symbol)\
-        .where(
-        and_(
-            register_of_calls_and_puts_actions.c.status_of_action == status,
-            register_of_calls_and_puts_actions.c.symbol == symbol,
-            register_of_calls_and_puts_actions.c.call_or_put == call_or_put
-        ))
+    query = text(
+        "SELECT  register_of_calls_and_puts_actions.symbol, "
+        "register_of_calls_and_puts_actions.action_type, register_of_calls_and_puts_actions.candle_date, " 
+        "register_of_calls_and_puts_actions.strike , register_of_calls_and_puts_actions.ask_price ,"
+        "register_of_calls_and_puts_actions.bid_price,id "
+        "FROM  register_of_calls_and_puts_actions "
+        "WHERE register_of_calls_and_puts_actions.status_of_action LIKE :status AND "
+        "register_of_calls_and_puts_actions.symbol LIKE :symbol AND "
+        "register_of_calls_and_puts_actions.call_or_put LIKE :call_or_put"
+    )
 
-    records = await database.fetch_all(query)
+
+    records = database.execute(query, {"status": status, "symbol": symbol, "call_or_put": call_or_put}).fetchall()
     records = list(records)
     print(records)
     for record in records:
@@ -116,11 +114,10 @@ async def update_status_of_actions(strike, id):
     await database.execute(query)
 
 
-engine = sqlalchemy.create_engine(DATABASE_URL)
-metadata.create_all(engine)
+
 
 if __name__ == '__main__':
-    from datetime import  datetime
+    from datetime import datetime
     insert_data(symbol="AAPL",
                 candle_date="2021-10-04 09:30:00",
                 open_value=1.1,
@@ -134,8 +131,6 @@ if __name__ == '__main__':
                 order_date=datetime.now())
 
     ask_purchases(status="on posession", symbol="AAPL", call_or_put="call")
-
-
 
 """
 
